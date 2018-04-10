@@ -1,6 +1,6 @@
 #The MIT License (MIT)
 #
-#Copyright (c) 2016 - 2017 Carwyn Pelley
+#Copyright (c) 2016 - 2018 Carwyn Pelley
 #
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,12 @@
 # svn clean (git clean)
 # svn rebase (git rebase)
 # svn browse
+
+call_svn(){
+    # We call svn in this way to ensure that we don't have infinite recursion
+    # (we don't want this script calling itself when calling svn).
+    which svn;
+}
 
 
 _unknown_args() {
@@ -189,6 +195,27 @@ bdiff() {
 }
 
 
+brevert() {
+    case $* in
+        --help|-h)
+            echo 'info: Perform revert against the base revision of the branch.'
+            echo 'usage: svn brevert' ;;
+        *)
+            svn merge -r HEAD:$(_svn_base_revision) $@ ;;
+    esac
+}
+
+
+list_renames() {
+    case $* in
+        --help|-h)
+            svn_get_renames.py --help ;;
+        *)
+            svn_get_renames.py "$@" ;;
+    esac
+}
+
+
 svn() {
     case $* in
         "rebase "*|rebase)
@@ -197,10 +224,17 @@ svn() {
             shift && svn_clean "$@" ;;
         "stash "*|stash)
             shift && svn_stash "$@" ;;
+        "glog "*|glog)
+            #$(call_svn) "$@" | less -X;;
+            shift && $(call_svn) log "$@" | less -X;; 
         "bdiff "*|bdiff)
             shift && bdiff "$@" ;;
+        "brevert "*|brevert)
+            shift && brevert "$@" ;;
         "browse "*|browse)
             shift && svn_browse_trac "$@" ;;
+        "list_renames "*|list_rename)
+            shift && list_renames "$@" ;;
         help|--help|-h)
                 command svn "$@"
             echo; echo "svn extended usage:"
@@ -208,7 +242,10 @@ svn() {
             echo "   clean";
             echo "   stash";
             echo "   bdiff";
+            echo "   brevert";
             echo "   browse";
+            echo "   list_renames";
+            echo "   glog";
             echo "see: https://gist.github.com/cpelley/5aab41aff4d8a2ec5161"
             ;;
         *)
